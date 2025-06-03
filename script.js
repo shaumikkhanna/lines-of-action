@@ -6,7 +6,8 @@ const state = {
 	board: Array(8)
 		.fill(null)
 		.map(() => Array(8).fill(null)),
-	movingPiece: null, // new: suppress this piece during render
+	movingPiece: null,
+	winner: null, // ← NEW
 };
 
 // Initialize the board
@@ -55,6 +56,8 @@ function setupPieces() {
 }
 
 function onCellClick(row, col) {
+	if (state.winner) return;
+
 	const selectedPiece = state.board[row][col];
 
 	// If selecting own piece
@@ -82,12 +85,15 @@ function onCellClick(row, col) {
 }
 
 function switchPlayer() {
+	if (state.winner) return;
+
 	state.currentPlayer = state.currentPlayer === "black" ? "white" : "black";
 	updateTurnIndicator();
 
-	// If AI should play
 	if (window.vsAI && state.currentPlayer === "white") {
-		setTimeout(computerMove, 300); // delay to allow animations
+		setTimeout(() => {
+			if (!state.winner) computerMove();
+		}, 300);
 	}
 }
 
@@ -264,11 +270,21 @@ function movePiece(fromRow, fromCol, toRow, toCol) {
 
 		createBoard();
 
-		if (checkWin(color)) {
-			alert(`${capitalize(color)} wins!`);
-		} else {
-			switchPlayer();
+		// ✅ Check for win for both players
+		if (checkWin("black")) {
+			state.winner = "black";
+			document.getElementById("turn-indicator").textContent =
+				"Black wins!";
+			return;
 		}
+		if (checkWin("white")) {
+			state.winner = "white";
+			document.getElementById("turn-indicator").textContent =
+				"White wins!";
+			return;
+		}
+
+		switchPlayer();
 	}, 450);
 }
 
@@ -415,6 +431,8 @@ function highlightMoves(row, col) {
 let suggestedMove = null;
 
 function showHint() {
+	if (state.winner) return;
+
 	const player = state.currentPlayer;
 	const result = getHintMove(player);
 
@@ -474,8 +492,25 @@ function getHintMove(player) {
 		if (safeMoves.length > 0) return { move: safeMoves[0], type: "safe" };
 	}
 
-	// Fallback: just return any move
-	return moves.length > 0 ? { move: moves[0], type: "any" } : null;
+	// Step 3: fallback to best evaluated move
+	let bestScore = -Infinity;
+	let bestMove = null;
+
+	for (const move of moves) {
+		const score = evaluateMove(
+			move.fromRow,
+			move.fromCol,
+			move.toRow,
+			move.toCol,
+			player
+		);
+		if (score > bestScore) {
+			bestScore = score;
+			bestMove = move;
+		}
+	}
+
+	return bestMove ? { move: bestMove, type: "any" } : null;
 }
 
 function highlightSuggestedMove(move) {
