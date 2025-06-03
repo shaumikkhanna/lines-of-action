@@ -412,6 +412,118 @@ function highlightMoves(row, col) {
 	board.children[selectedIndex].classList.add("highlight");
 }
 
+let suggestedMove = null;
+
+function showHint() {
+	const player = state.currentPlayer;
+	const result = getHintMove(player);
+
+	if (!result || !result.move) {
+		alert("No legal moves available.");
+		return;
+	}
+
+	suggestedMove = result.move;
+
+	const msgEl = document.getElementById("hint-message");
+	if (result.type === "win") {
+		msgEl.textContent = "✅ You can make a winning a move.";
+	} else if (result.type === "safe") {
+		msgEl.textContent = "⚠️ There is a way out of this.";
+	} else {
+		msgEl.textContent = "➡️ There is a move for you.";
+	}
+
+	document.getElementById("hint-box").style.display = "block";
+}
+
+function getHintMove(player) {
+	const moves = getAllLegalMoves(player);
+
+	// Check for immediate winning move
+	for (const move of moves) {
+		applyMoveTemporarily(move, player);
+		const win = checkWin(player);
+		undoTemporaryMove(move, player);
+		if (win) return { move, type: "win" };
+	}
+
+	// Step 1: Can opponent win right now?
+	const opp = player === "black" ? "white" : "black";
+	const oppThreatening = getAllLegalMoves(opp).some((m) => {
+		applyMoveTemporarily(m, opp);
+		const win = checkWin(opp);
+		undoTemporaryMove(m, opp);
+		return win;
+	});
+
+	// Step 2: If yes, try to block it
+	if (oppThreatening) {
+		const safeMoves = moves.filter((move) => {
+			applyMoveTemporarily(move, player);
+			const threatStillExists = getAllLegalMoves(opp).some((m) => {
+				applyMoveTemporarily(m, opp);
+				const win = checkWin(opp);
+				undoTemporaryMove(m, opp);
+				return win;
+			});
+			undoTemporaryMove(move, player);
+			return !threatStillExists;
+		});
+
+		if (safeMoves.length > 0) return { move: safeMoves[0], type: "safe" };
+	}
+
+	// Fallback: just return any move
+	return moves.length > 0 ? { move: moves[0], type: "any" } : null;
+}
+
+function highlightSuggestedMove(move) {
+	const fromIndex = move.fromRow * 8 + move.fromCol;
+	const toIndex = move.toRow * 8 + move.toCol;
+
+	board.children[fromIndex].classList.add("highlight-hint");
+	board.children[toIndex].classList.add("highlight-hint");
+}
+
+document.getElementById("show-move-btn").addEventListener("click", () => {
+	document.getElementById("hint-box").style.display = "none";
+	if (suggestedMove) {
+		createBoard(); // clear old highlights
+		highlightSuggestedMove(suggestedMove);
+	}
+});
+
+function getAllLegalMoves(player) {
+	const moves = [];
+	for (let r = 0; r < 8; r++) {
+		for (let c = 0; c < 8; c++) {
+			if (state.board[r][c] === player) {
+				for (const move of getLegalMoves(r, c)) {
+					moves.push({
+						fromRow: r,
+						fromCol: c,
+						toRow: move.row,
+						toCol: move.col,
+					});
+				}
+			}
+		}
+	}
+	return moves;
+}
+
+function applyMoveTemporarily(move, player) {
+	move.captured = state.board[move.toRow][move.toCol];
+	state.board[move.toRow][move.toCol] = player;
+	state.board[move.fromRow][move.fromCol] = null;
+}
+
+function undoTemporaryMove(move, player) {
+	state.board[move.fromRow][move.fromCol] = player;
+	state.board[move.toRow][move.toCol] = move.captured;
+}
+
 setupPieces();
 createBoard();
 updateTurnIndicator();
