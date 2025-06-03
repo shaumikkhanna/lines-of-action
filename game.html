@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Lines of Action</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap"
+			rel="stylesheet"
+		/>
+		<link rel="stylesheet" href="style.css" />
+	</head>
+	<body>
+		<button onclick="window.location.href='index.html'" class="back-button">
+			Back to Menu
+		</button>
+		<h1 class="title">Lines of Action</h1>
+		<div id="board"></div>
+		<div id="turn-indicator">Black's turn</div>
+
+		<script>
+			const urlParams = new URLSearchParams(window.location.search);
+			const mode = urlParams.get("mode") || "pass"; // default is pass-and-play
+			window.vsAI = mode === "ai"; // globally accessible in game.js
+		</script>
+
+		<script src="script.js"></script>
+	</body>
+</html>
